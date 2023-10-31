@@ -6,19 +6,99 @@ package graph
 
 import (
 	"context"
-	"fmt"
+	"errors"
+	"log"
 
 	"github.com/IcaroSilvaFK/gql-go/graph/model"
 )
 
-// CreateTodo is the resolver for the createTodo field.
-func (r *mutationResolver) CreateTodo(ctx context.Context, input model.NewTodo) (*model.Todo, error) {
-	panic(fmt.Errorf("not implemented: CreateTodo - createTodo"))
+// CreateCategory is the resolver for the createCategory field.
+func (r *mutationResolver) CreateCategory(ctx context.Context, input model.NewCategory) (*model.Category, error) {
+	cat, err := r.CategoryDB.Create(input.Name, *input.Description)
+
+	if !errors.Is(err, nil) {
+		return nil, err
+	}
+
+	return &model.Category{
+		ID:          cat.ID,
+		Name:        cat.Name,
+		Description: &cat.Description,
+	}, nil
 }
 
-// Todos is the resolver for the todos field.
-func (r *queryResolver) Todos(ctx context.Context) ([]*model.Todo, error) {
-	panic(fmt.Errorf("not implemented: Todos - todos"))
+// CreateCourse is the resolver for the createCourse field.
+func (r *mutationResolver) CreateCourse(ctx context.Context, input model.NewCourse) (*model.Course, error) {
+
+	log.Println(*input.Description)
+
+	c, err := r.CourseDB.Create(input.Name, *input.Description, input.CategoryID)
+
+	cat, _ := r.CategoryDB.FindById(input.CategoryID)
+
+	if !errors.Is(err, nil) {
+		return nil, err
+	}
+
+	return &model.Course{
+		ID:          c.ID,
+		Name:        c.Name,
+		Description: &c.Description,
+		Category: &model.Category{
+			ID:          cat.ID,
+			Name:        cat.Name,
+			Description: &cat.Description,
+		},
+	}, nil
+}
+
+// Categories is the resolver for the categories field.
+func (r *queryResolver) Categories(ctx context.Context) ([]*model.Category, error) {
+	categories, err := r.CategoryDB.FindAll()
+
+	if !errors.Is(err, nil) {
+		return nil, err
+	}
+
+	var cats []*model.Category
+
+	for _, c := range *categories {
+		cats = append(cats, &model.Category{
+			ID:          c.ID,
+			Name:        c.Name,
+			Description: &c.Description,
+		})
+	}
+	return cats, nil
+}
+
+// Courses is the resolver for the courses field.
+func (r *queryResolver) Courses(ctx context.Context) ([]*model.Course, error) {
+
+	courses, err := r.CourseDB.FindAll()
+
+	if !errors.Is(err, nil) {
+		return nil, err
+	}
+
+	var cs []*model.Course
+
+	for _, c := range *courses {
+		cat, _ := r.CategoryDB.FindById(c.CategoryID)
+
+		cs = append(cs, &model.Course{
+			ID:          c.ID,
+			Name:        c.Name,
+			Description: &c.Description,
+			Category: &model.Category{
+				ID:          cat.ID,
+				Name:        cat.Name,
+				Description: &cat.Description,
+			},
+		})
+
+	}
+	return cs, nil
 }
 
 // Mutation returns MutationResolver implementation.
@@ -29,3 +109,11 @@ func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+
+// !!! WARNING !!!
+// The code below was going to be deleted when updating resolvers. It has been copied here so you have
+// one last chance to move it out of harms way if you want. There are two reasons this happens:
+//   - When renaming or deleting a resolver the old code will be put in here. You can safely delete
+//     it when you're done.
+//   - You have helper methods in this file. Move them out to keep these resolver files clean.
+var courses = []*model.Course{}
