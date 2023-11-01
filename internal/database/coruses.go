@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 )
@@ -49,7 +50,7 @@ func (c *Course) Create(name, description, categoryId string) (*Course, error) {
 
 func (c *Course) FindById(id string) (*Course, error) {
 
-	row, err := c.db.Query("SELECT * FROM courses WHERE id = $id", id)
+	row, err := c.db.Query("SELECT * FROM courses WHERE id = $1", id)
 
 	if !errors.Is(err, nil) {
 		return nil, err
@@ -86,5 +87,30 @@ func (c *Course) FindAll() (*[]Course, error) {
 		courses = append(courses, course)
 	}
 
+	return &courses, nil
+}
+
+func (c *Course) FindByCategoryId(categoryId string) (*[]Course, error) {
+	rows, err := c.db.Query("SELECT * FROM courses WHERE category_id = ?", categoryId)
+
+	if !errors.Is(err, nil) {
+		return nil, err
+	}
+
+	var courses []Course
+
+	for rows.Next() {
+		var course Course
+
+		rows.Scan(
+			&course.ID,
+			&course.Name,
+			&course.Description,
+			&course.CategoryID,
+		)
+
+		courses = append(courses, course)
+	}
+	fmt.Println(courses)
 	return &courses, nil
 }

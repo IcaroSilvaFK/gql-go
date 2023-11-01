@@ -68,19 +68,38 @@ func (c *Category) FindAll() (*[]Category, error) {
 
 func (c *Category) FindById(id string) (*Category, error) {
 
-	row, err := c.db.Query("SELECT * FROM categories WHERE id = $1 LIMIT 1", id)
+	row := c.db.QueryRow("SELECT * FROM categories WHERE id = $1", id)
 
-	if !errors.Is(err, nil) {
-		return nil, err
+	if !errors.Is(row.Err(), nil) {
+		return nil, row.Err()
 	}
 
 	var cat Category
 
-	fmt.Println(row.Columns())
+	row.Scan(&cat.ID, &cat.Name, &cat.Description)
 
-	for row.Next() {
-		row.Scan(&cat.ID, &cat.Name, &cat.Description)
+	return &cat, nil
+}
+
+func (c *Category) FindByCourseId(courseId string) (*Category, error) {
+
+	fmt.Println(courseId)
+
+	q := fmt.Sprintf(`SELECT * FROM categories c JOIN courses co ON c.id = co.category_id WHERE co.id = "%s"`, courseId)
+
+	row := c.db.QueryRow(q)
+
+	if !errors.Is(row.Err(), nil) {
+		return nil, row.Err()
 	}
+
+	var cat Category
+
+	row.Scan(
+		&cat.ID,
+		&cat.Name,
+		&cat.Description,
+	)
 
 	return &cat, nil
 }

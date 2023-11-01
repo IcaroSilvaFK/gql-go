@@ -7,10 +7,48 @@ package graph
 import (
 	"context"
 	"errors"
-	"log"
 
 	"github.com/IcaroSilvaFK/gql-go/graph/model"
 )
+
+// Courses is the resolver for the courses field.
+func (r *categoryResolver) Courses(ctx context.Context, obj *model.Category) ([]*model.Course, error) {
+	courses, err := r.CourseDB.FindByCategoryId(obj.ID)
+
+	if !errors.Is(err, nil) {
+		return nil, err
+	}
+
+	var coursesModel []*model.Course
+
+	for _, v := range *courses {
+
+		coursesModel = append(coursesModel, &model.Course{
+			ID:          v.ID,
+			Name:        v.Name,
+			Description: &v.Description,
+		})
+
+	}
+
+	return coursesModel, nil
+}
+
+// Category is the resolver for the category field.
+func (r *courseResolver) Category(ctx context.Context, obj *model.Course) (*model.Category, error) {
+
+	cat, err := r.CategoryDB.FindByCourseId(obj.ID)
+
+	if !errors.Is(err, nil) {
+		return nil, err
+	}
+
+	return &model.Category{
+		ID:          cat.ID,
+		Name:        cat.Name,
+		Description: &cat.Description,
+	}, nil
+}
 
 // CreateCategory is the resolver for the createCategory field.
 func (r *mutationResolver) CreateCategory(ctx context.Context, input model.NewCategory) (*model.Category, error) {
@@ -30,11 +68,7 @@ func (r *mutationResolver) CreateCategory(ctx context.Context, input model.NewCa
 // CreateCourse is the resolver for the createCourse field.
 func (r *mutationResolver) CreateCourse(ctx context.Context, input model.NewCourse) (*model.Course, error) {
 
-	log.Println(*input.Description)
-
 	c, err := r.CourseDB.Create(input.Name, *input.Description, input.CategoryID)
-
-	cat, _ := r.CategoryDB.FindById(input.CategoryID)
 
 	if !errors.Is(err, nil) {
 		return nil, err
@@ -44,11 +78,6 @@ func (r *mutationResolver) CreateCourse(ctx context.Context, input model.NewCour
 		ID:          c.ID,
 		Name:        c.Name,
 		Description: &c.Description,
-		Category: &model.Category{
-			ID:          cat.ID,
-			Name:        cat.Name,
-			Description: &cat.Description,
-		},
 	}, nil
 }
 
@@ -74,7 +103,6 @@ func (r *queryResolver) Categories(ctx context.Context) ([]*model.Category, erro
 
 // Courses is the resolver for the courses field.
 func (r *queryResolver) Courses(ctx context.Context) ([]*model.Course, error) {
-
 	courses, err := r.CourseDB.FindAll()
 
 	if !errors.Is(err, nil) {
@@ -84,22 +112,22 @@ func (r *queryResolver) Courses(ctx context.Context) ([]*model.Course, error) {
 	var cs []*model.Course
 
 	for _, c := range *courses {
-		cat, _ := r.CategoryDB.FindById(c.CategoryID)
 
 		cs = append(cs, &model.Course{
 			ID:          c.ID,
 			Name:        c.Name,
 			Description: &c.Description,
-			Category: &model.Category{
-				ID:          cat.ID,
-				Name:        cat.Name,
-				Description: &cat.Description,
-			},
 		})
 
 	}
 	return cs, nil
 }
+
+// Category returns CategoryResolver implementation.
+func (r *Resolver) Category() CategoryResolver { return &categoryResolver{r} }
+
+// Course returns CourseResolver implementation.
+func (r *Resolver) Course() CourseResolver { return &courseResolver{r} }
 
 // Mutation returns MutationResolver implementation.
 func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
@@ -107,13 +135,7 @@ func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
 // Query returns QueryResolver implementation.
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
+type categoryResolver struct{ *Resolver }
+type courseResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
-
-// !!! WARNING !!!
-// The code below was going to be deleted when updating resolvers. It has been copied here so you have
-// one last chance to move it out of harms way if you want. There are two reasons this happens:
-//   - When renaming or deleting a resolver the old code will be put in here. You can safely delete
-//     it when you're done.
-//   - You have helper methods in this file. Move them out to keep these resolver files clean.
-var courses = []*model.Course{}
